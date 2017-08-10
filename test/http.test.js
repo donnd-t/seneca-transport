@@ -181,6 +181,49 @@ describe('Specific http', function () {
       })
   })
 
+  it('bad secret', function (fin) {
+    var clientSecret = {secret: 'mysecret'}
+    var serverSecret = {secret: clientSecret.secret + 'BAD'}
+    CreateInstance(null, {web: serverSecret})
+      .add('c:1', function (args, done) {
+        done(null, {s: '1-' + args.d})
+      })
+      .listen({type: 'web', port: 20402})
+      .ready(function () {
+        CreateInstance(null, {web: clientSecret})
+          .client({ type: 'web', port: 20402 })
+          .ready(function () {
+            this.act('c:1,d:A', function (err, out) {
+              Assert.equal('bad_secret', err.code)
+              this.close(fin)
+            })
+          })
+      })
+  })
+
+  it('good secret', function (fin) {
+    var secret = {secret: 'mysecret'}
+    CreateInstance({errhandler: fin}, {web: secret})
+      .add('c:1', function (args, done) {
+        done(null, {s: '1-' + args.d})
+      })
+      .listen({type: 'web', port: 20502})
+      .ready(function () {
+        CreateInstance({errhandler: fin}, {web: secret})
+          .client({ type: 'web', port: 20502 })
+          .ready(function () {
+            this.act('c:1,d:A', function (err, out) {
+              if (err) {
+                return fin(err)
+              }
+
+              Assert.equal('{"s":"1-A"}', JSON.stringify(out))
+              this.close(fin)
+            })
+          })
+      })
+  })
+
   it('can listen on ephemeral port', function (done) {
     var seneca = CreateInstance()
     var settings = {
